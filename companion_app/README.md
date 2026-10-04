@@ -22,3 +22,7 @@ This directory houses the companion client applications designed to interface se
 
 ## 🛠️ Opening the Android Project
 Open the `android/` folder directly in **Android Studio** and build to any Android device running Android 8.0 (API 26) or higher.
+
+## 📖 Handover & Architecture Guide
+For the full concept, research methodology, and handover roadmap for junior researchers, see:
+👉 [Konsep & Arsitektur Ekosistem Aplikasi Asistif](../../docs/konsep_aplikasi_asistif.md)
