@@ -17,6 +17,10 @@
 Mechatronics Engineering · Politeknik Negeri Batam
 PKM-KC (Program Kreativitas Mahasiswa - Karsa Cipta) & Final Project
 
+<br/>
+
+**Languages:** **English** | [Bahasa Indonesia](README.id.md)
+
 </div>
 
 ---
@@ -240,9 +244,9 @@ Wire according to the [pinout table](#-hardware--pinout). Checklist:
 
 ```bash
 cd device
-python sigap_core.py                       # expected: 284 lulus, 0 gagal
+python sigap_core.py                          # expected: 284 passed, 0 failed
 cd ..
-python tools/periksa_main.py device/main.py   # expected: no MASALAH
+python tools/periksa_main.py device/main.py   # expected: 0 issues found (clean)
 ```
 
 Do not deploy if either check fails.
@@ -332,15 +336,16 @@ Timing: a tap is a short press; a **double-tap** needs the second press within
 In the Reading state, the next group is read automatically when the current
 audio finishes, so the user only needs to press when they want to skip.
 
-#### Audio cues
+#### Spoken Audio Cues (Indonesian Speech Engine)
 
-| Cue | Meaning |
-| :--- | :--- |
-| *"kamera siap"* | Ready for the next capture |
-| *"mohon tunggu"* | OCR is running |
-| *"terlalu dekat"* / *"terlalu jauh"* | Move the text to 10 to 40 cm |
-| *"deteksi gagal"* | Nothing reliable found. Reposition and retry |
-| Silence after money capture | No note passed the 0.80 threshold. Retry |
+| Spoken Cue (Indonesian) | Meaning (English) | Trigger Condition |
+| :--- | :--- | :--- |
+| *"kamera siap"* | Camera ready | System initialised or returned to idle preview state |
+| *"mohon tunggu"* | Please wait | OCR processing pipeline executing on NPU |
+| *"terlalu dekat"* | Too close | LiDAR measured target distance < 10 cm |
+| *"terlalu jauh"* | Too far | LiDAR measured target distance > 40 cm |
+| *"deteksi gagal"* | Detection failed | No valid banknote or text found in capture |
+| *(Silence)* | No confident detection | No detection reached the `CONF_MIN = 0.80` threshold |
 
 #### Tips for best results
 - **Money:** hold one or more notes flat in front of the lens with the whole
@@ -387,11 +392,11 @@ Environment variables: `SIGAP_PORT` (default `8080`), `SIGAP_DEVICE_ID`,
 | :--- | :--- |
 | No sound at all | `aplay -l` shows the DAC? Is `/root/audio_sigap/` present? Look for `AUDIO` in the log |
 | Button does nothing | Log must show `[AKTIF] Pin A23`. Button wired to GND? |
-| No distance warnings | Log says `LiDAR tidak aktif`: TX/RX swapped or no 5 V. App still works without it |
+| No distance warnings | Log indicates `"LiDAR tidak aktif"` (inactive): TX/RX wires swapped or 5V disconnected. The app falls back to safe scanning without LiDAR gating |
 | Model fails to load | `.cvimodel` and `.mud` both present in `models/` or `/root/models/`? |
 | OCR never runs | PP-OCR files in one of the search paths (Step 4)? |
 | `AttributeError` in `sigap_core` | Old copy in `/root`. Update it and delete `__pycache__` |
-| Always "terlalu jauh" in TEKS | Hold text within 40 cm, or set `ENABLE_LIDAR = False` to test |
+| Continuous "terlalu jauh" in TEKS | Hold text within 10–40 cm, or set `ENABLE_LIDAR = False` to test |
 | Companion app cannot connect | Same Wi-Fi? Open `http://<DEVICE_IP>:8080/health` in a browser |
 | Changes not visible after Run | MaixVision Run does not update the installed app (Step 5B) |
 
@@ -406,7 +411,7 @@ validation and camera A/B statistics (sign test).
 1. Open `companion_app/android/` in Android Studio and let Gradle sync.
 2. Build and install on a phone with **Android 7.0 (API 24)** or newer.
 3. Connect the phone to the **same Wi-Fi** as the MaixCam.
-4. In the app, set the device IP, then tap **Sinkronkan**.
+4. In the app, enter the device IP address, then tap **"Sinkronkan"** (Sync).
 
 Sync flow: `GET /health` -> `POST /session/seal` -> `GET /session/<id>/csv`
 -> SHA-1 check -> download images -> `DELETE /session/<id>`.
