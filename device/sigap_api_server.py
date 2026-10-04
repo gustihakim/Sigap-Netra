@@ -1,10 +1,4 @@
-"""
-Sigap Netra - Server HTTP REST API & Perekam Transaksi Latar (Sipeed MaixCam).
-
-Menyediakan komunikasi luring antara perangkat cerdas Sigap Netra dengan aplikasi
-pendamping Android (JembatanSigap.kt) untuk sinkronisasi telemetri real-time,
-pengunduhan berkas transaksi CSV bersegel, dan inspeksi bukti citra.
-"""
+"""Sigap Netra - Server REST API & Perekam Transaksi Latar (Sipeed MaixCam)."""
 import glob
 import hashlib
 import http.server

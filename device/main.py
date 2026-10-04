@@ -1,12 +1,4 @@
-"""
-Sigap Netra V3 - Kacamata Asistif Cerdas Berbasis Edge AI untuk Tunanetra.
-
-Sistem komputasi tepi luring penuh pada Sipeed MaixCam (SoC Sophgo SG2002, NPU 1 TOPS, RISC-V C906):
-- Pengenalan Nominal Uang: YOLOv11n Delta (INT8/BF16) dengan konsensus multi-frame & deduplikasi spasial.
-- Pembacaan Teks Menu/Dokumen: PP-OCR (deteksi & pengenalan teks) dengan koreksi kamus fonetik.
-- Sensor & Periferal: TF-Luna LiDAR (UART1), ADS1115 Pemantau Baterai (I2C5), Tombol Fisik (GPIO A23), Audio ALSA.
-- Pengembang: Gusti Hakim Thoriq Wicaksono - PKM-KC & Tugas Akhir.
-"""
+"""Sigap Netra V3 - Kacamata Asistif Cerdas Berbasis Edge AI (Gusti Hakim Thoriq Wicaksono)."""
 
 import glob
 import hashlib

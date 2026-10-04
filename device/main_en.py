@@ -1,12 +1,4 @@
-"""
-Sigap Netra V3 - Edge AI Assistive Smart Glasses for the Visually Impaired.
-
-Fully offline edge computing system on Sipeed MaixCam (SoC Sophgo SG2002, NPU 1 TOPS, RISC-V C906):
-- Banknote Recognition: YOLOv11n Delta (INT8/BF16) with multi-frame consensus & spatial deduplication.
-- Menu & Document Text Reading: PP-OCR (text detection & recognition) with phonetic dictionary correction.
-- Sensors & Peripherals: TF-Luna LiDAR (UART1), ADS1115 Battery Monitor (I2C5), Push Button (GPIO A23), ALSA Audio.
-- Developer: GHTW Team (Gusti Hakim Thoriq Wicaksono) - PKM-KC & Undergraduate Thesis.
-"""
+"""Sigap Netra V3 - Edge AI Assistive Smart Glasses (Gusti Hakim Thoriq Wicaksono)."""
 
 import glob
 import hashlib

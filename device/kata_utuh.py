@@ -1,9 +1,4 @@
-"""
-Bank Kosakata Audio Utuh Bahasa Indonesia untuk Sigap Netra.
-
-Memetakan nama berkas audio WAV ke kata dasar ucapan (nominal Rupiah,
-istilah kuliner, menu makanan/minuman, dan penunjuk kuantitas).
-"""
+"""Bank Kosakata Audio Utuh Bahasa Indonesia untuk Sigap Netra."""
 KATA_UTUH = {
     "nol.wav": "nol",
     "satu.wav": "satu",
