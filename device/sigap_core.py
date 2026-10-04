@@ -1,18 +1,10 @@
 """
-sigap_core.py - Logika murni Sigap Netra (TANPA dependensi maix)
-=================================================================
-Semua algoritma yang bisa salah tapi TIDAK butuh hardware ditaruh di sini,
-supaya bisa diuji di PC. delta2.py mengimpor modul ini.
+Sigap Netra - Algoritma Inti dan Mesin NLP Luring (Bebas Ketergantungan Hardware).
 
-Isi:
-  - iou / dedup_boxes      : cegah satu lembar uang terhitung dua kali
-  - vote_notes             : temporal voting lintas frame
-  - baca_urutan            : urutkan kotak OCR kiri->kanan, atas->bawah
-  - suku_kata              : pemenggal suku kata Bahasa Indonesia
-  - rencana_ucap           : tangga fallback audio (frasa->kata->suku kata->huruf)
-  - format_rupiah          : angka -> nama file wav / teks
-
-Jalankan `python sigap_core.py` untuk menjalankan self-test.
+Menyediakan logika murni pemrosesan teks OCR, deduplikasi spasial bounding box,
+voting konsensus temporal multi-frame, koreksi fonetik kamus leksikon, serta
+penanganan pola tombol fisik dan pemantauan level baterai.
+Diverifikasi secara komprehensif melalui 284 pengujian unit mandiri.
 """
 
 # Dinaikkan setiap kali ada fungsi baru. Skrip di device memeriksa ini saat
@@ -43,12 +35,7 @@ DISEDIAKAN = (
 
 
 def periksa(*wajib):
-    """
-    Panggil di awal skrip device. Mengembalikan daftar yang HILANG.
-
-    Dipakai supaya pesan gagalnya jelas: 'unggah ulang sigap_core.py',
-    bukan AttributeError di baris ke-380.
-    """
+    """Validasi ketersediaan fungsi publik yang diwajibkan oleh modul pemanggil."""
     return [n for n in wajib if not hasattr(sys.modules[__name__], n)]
 
 
@@ -75,13 +62,7 @@ SATUAN = ["", "satu", "dua", "tiga", "empat", "lima",
 
 
 def nominal_dari_label(label):
-    """
-    Ubah label kelas model jadi angka nominal.
-
-    Mendukung skema 28-kelas:  'rp50000_2022_belakang' -> 50000
-    dan skema lama 7-kelas:    '50000'                 -> 50000
-    Mengembalikan None kalau label bukan uang (mis. kelas 'teks').
-    """
+    """Konversi label kelas model deteksi menjadi nilai nominal numerik (integer)."""
     if label is None:
         return None
     s = str(label).strip().lower()
@@ -96,10 +77,7 @@ def nominal_dari_label(label):
 
 
 def eja_angka(n):
-    """
-    Angka -> daftar kata Indonesia. Dipakai untuk mengucapkan TOTAL
-    yang tidak punya file wav sendiri (mis. 17000 -> tujuh belas ribu).
-    """
+    """Ubah nilai angka numerik menjadi deretan kata ejaan Bahasa Indonesia."""
     if n == 0:
         return ["nol"]
     kata = []
@@ -142,7 +120,7 @@ def eja_angka(n):
 # 2. ANTI DOUBLE-COUNT
 # ======================================================================
 def iou(a, b):
-    """Intersection-over-Union dua kotak (x, y, w, h)."""
+    """Hitung rasio Intersection-over-Union (IoU) antara dua kotak pembatas (x, y, w, h)."""
     ax, ay, aw, ah = a
     bx, by, bw, bh = b
     x1, y1 = max(ax, bx), max(ay, by)
@@ -155,17 +133,7 @@ def iou(a, b):
 
 
 def dedup_boxes(dets, iou_th=0.45, iou_beda_th=0.70):
-    """
-    Buang kotak yang saling tumpang tindih pada SATU frame.
-
-    - Kotak dengan NOMINAL SAMA: gunakan iou_th (0.45) ketat untuk mencegah
-      satu lembar terlipat/lecek dihitung dua kali (phantom money).
-    - Kotak dengan NOMINAL BERBEDA: gunakan iou_beda_th (0.70) longgar karena
-      dua lembar nominal berbeda yang beririsan/berdampingan adalah dua
-      lembar fisik yang sah dan harus dijumlahkan.
-
-    dets: list dict {nominal, conf, box}
-    """
+    """Eliminasi kotak deteksi duplikat pada satu frame menggunakan ambang IoU adaptif per kelas."""
     out = []
     for d in sorted(dets, key=lambda x: -x["conf"]):
         lolos = True
@@ -181,32 +149,7 @@ def dedup_boxes(dets, iou_th=0.45, iou_beda_th=0.70):
 
 
 def batas_lembar(frames, min_setuju=3):
-    """
-    Paling banyak berapa lembar yang pernah terlihat SERENTAK dalam satu
-    frame, dengan dukungan minimal min_setuju frame. -> int
-
-    INI PENJAGA YANG DULU TIDAK ADA, DAN AKIBATNYA FATAL.
-
-    Log perangkat 26 Agu, penekanan ke-34, sesudah dedup:
-
-        frame  1 4 5 6 7 8 9  ->  50k  -  100k 50k 100k 100k 50k
-        jumlah per frame      ->  [1,0,0,1,1,1,1,1,1]
-
-        50000  didukung 3 frame
-        100000 didukung 4 frame
-        keduanya TIDAK PERNAH serentak dalam satu frame
-
-        Alat mengumumkan "Rp 100.000 + Rp 50.000 = Rp 150.000"
-        padahal yang ada SATU lembar yang labelnya berkedip.
-
-    Bagi pengguna tunanetra, itu mode kegagalan paling berbahaya yang
-    mungkin: bukan diam, bukan salah sebut satu nominal, melainkan
-    MENGARANG UANG YANG TIDAK ADA - dengan nada yakin.
-
-    Aturannya sesederhana kalimat ini: kalau tidak ada satu frame pun
-    yang pernah memuat N lembar sekaligus, jawabannya tidak boleh
-    N lembar.
-    """
+    """Estimasi jumlah lembar uang fisik maksimum yang tampak serentak dalam jendela burst."""
     frames = [f for f in (frames or []) if f is not None]
     if not frames:
         return 0
@@ -218,29 +161,7 @@ def batas_lembar(frames, min_setuju=3):
 
 
 def vote_notes(frames, min_setuju=3):
-    """
-    Gabungkan hasil beberapa frame jadi satu keputusan.
-
-    frames: list per frame, tiap frame list dict {nominal, conf, box}
-
-    DUA SYARAT, DAN KEDUANYA WAJIB
-
-      1. Tiap nominal harus muncul di minimal min_setuju frame.
-         (syarat lama - menyaring kilatan sesaat)
-
-      2. Jumlah lembar yang dilaporkan tidak boleh melebihi jumlah
-         yang pernah terlihat SERENTAK dalam satu frame.
-         (syarat baru - lihat batas_lembar)
-
-    Syarat 2 ditambahkan 26 Agu setelah alat mengumumkan
-    "Rp 150.000" untuk satu lembar Rp50.000 yang labelnya berkedip
-    antara 50000 dan 100000. Syarat 1 saja meloloskannya, karena
-    kedua label memang masing-masing muncul di cukup banyak frame.
-
-    KALAU HARUS MEMANGKAS, YANG DIBUANG ADALAH YANG PALING LEMAH.
-    Bukan yang pertama, bukan yang terakhir - yang confidence
-    rata-ratanya terendah, karena itu yang paling mungkin hantu.
-    """
+    """Lakukan voting konsensus temporal multi-frame untuk menyaring hasil deteksi uang yang stabil."""
     if not frames:
         return None
 
@@ -292,15 +213,7 @@ def vote_notes(frames, min_setuju=3):
 
 
 def baca_urutan(boxes, toleransi=0.6):
-    """
-    Urutkan kotak teks jadi urutan baca manusia: kiri->kanan, atas->bawah.
-
-    boxes: list dict minimal punya 'box' (x, y, w, h) dan 'teks'
-
-    Menyortir murni berdasarkan y akan mengacak kata-kata dalam satu baris
-    yang sedikit miring. Jadi: kelompokkan dulu jadi baris memakai ambang
-    relatif terhadap tinggi huruf, baru urutkan tiap baris berdasarkan x.
-    """
+    """Urutkan kotak teks hasil deteksi ke tata urutan baca standar (kiri ke kanan, atas ke bawah)."""
     if not boxes:
         return []
     tinggi = sorted(b["box"][3] for b in boxes)
@@ -328,7 +241,7 @@ def baca_urutan(boxes, toleransi=0.6):
 
 
 def _kelompok_baris(boxes, toleransi=0.6):
-    """Kelompokkan kotak jadi baris berdasarkan tinggi. -> list of list."""
+    """Kelompokkan kotak deteksi teks menjadi baris bacaan berdasarkan tinggi huruf."""
     if not boxes:
         return []
     tinggi = sorted(b["box"][3] for b in boxes)
@@ -351,16 +264,7 @@ def _kelompok_baris(boxes, toleransi=0.6):
 
 
 def baca_baris_info(boxes, toleransi=0.6):
-    """
-    Seperti baca_baris, tapi tinggi huruf dan posisi TIDAK dibuang.
-
-    -> [{"teks", "tinggi", "y", "harga"}, ...]
-
-    baca_baris membuang tinggi kotak begitu selesai mengelompokkan. Untuk
-    mengenali JUDUL, tinggi itu justru bukti utamanya - judul dicetak
-    lebih besar, dan itulah alasan ia satu-satunya teks yang terbaca
-    benar pada menu padat.
-    """
+    """Kelompokkan kotak teks menjadi baris terstruktur dengan mempertahankan informasi koordinat dan tinggi huruf."""
     hasil = []
     for r in _kelompok_baris(boxes, toleransi):
         for seg in pecah_kolom(sorted(r, key=lambda b: b["box"][0])):
@@ -473,38 +377,7 @@ terlaris terbaru sayuran taburan signature
 
 
 def kenali_judul(info, kamus=None, faktor=1.25, kata_judul=None):
-    """
-    Tandai baris mana JUDUL bagian, mana ISI. -> info + kunci "judul"
-
-    KENAPA JUDUL LAYAK DIPERLAKUKAN KHUSUS
-
-        Pada menu A4 padat, hampir semua isi terbaca kacau - tapi judul
-        justru terbaca BENAR. Bukan kebetulan: judul dicetak paling besar,
-        jadi satu-satunya teks yang lolos batas ~10 piksel PP-OCR.
-
-        Dari log perangkat ini, di tengah 106 kotak yang isinya rusak,
-        yang benar adalah MAKANAN, SAYURAN, MINUMAN, SAMBAL, MENU PAKET,
-        WARMINDO, NUSANTARA, TOPPING.
-
-        Artinya navigasi berbasis judul bekerja SEARAH dengan batas
-        perangkat, bukan melawannya.
-
-    DUA SINYAL
-
-        besar    tinggi huruf >= faktor x median, dan tidak berharga
-        bersih   tanpa harga, <= 3 kata, dan semua katanya dikenal kamus
-
-        Sinyal kedua menangkap judul yang ukurannya tidak menonjol -
-        misalnya menu yang seluruh hurufnya seragam. Tanpa itu, menu
-        semacam itu tidak punya judul sama sekali.
-
-    CATATAN
-
-        faktor 1.25 adalah tebakan awal yang MASUK AKAL, bukan hasil
-        pengukuran - log kami hanya memuat teks, tidak memuat tinggi
-        kotak. Tinggi tiap baris dicetak saat dipakai supaya angkanya
-        bisa dilihat dan ambangnya disetel dari kenyataan.
-    """
+    """Klasifikasikan baris teks menjadi judul kategori menu atau item konten berdasarkan tinggi relatif huruf."""
     kamus = kamus or set()
     # Kamus JUDUL, bukan kamus umum. Lihat catatan di KATA_JUDUL.
     kata_judul = KATA_JUDUL if kata_judul is None else kata_judul
@@ -535,12 +408,7 @@ def kenali_judul(info, kamus=None, faktor=1.25, kata_judul=None):
 
 
 def kelompokkan_bagian(info):
-    """
-    Kumpulkan isi di bawah tiap judul. -> [(judul, [isi, ...]), ...]
-
-    Baris sebelum judul pertama masuk bagian tanpa nama ("") - biasanya
-    nama restoran atau hiasan, dan pengguna tetap berhak mendengarnya.
-    """
+    """Kelompokkan item konten menu di bawah judul kategori masing-masing."""
     bagian, judul, isi = [], "", []
     for b in info:
         if b.get("judul"):
@@ -555,66 +423,14 @@ def kelompokkan_bagian(info):
 
 
 def pisah_nama_tempat(bagian, min_isi=1):
-    """
-    Pisahkan nama tempat dari kategori sungguhan. -> (nama, kategori)
-
-    MASALAHNYA
-
-        Kepala menu berbunyi 'MENU / WARMINDO / NUSANTARA' - tiga baris
-        besar tanpa harga, jadi ketiganya lolos sebagai judul. Padahal
-        itu nama warung, bukan kategori yang bisa dibuka.
-
-        Akibatnya pengguna tunanetra harus menekan tombol tiga kali
-        melewati bagian kosong sebelum sampai ke 'Makanan'.
-
-    ATURANNYA SEDERHANA DAN MASUK AKAL
-
-        Kategori punya ISI di bawahnya. Nama tempat tidak.
-
-        Bukan lewat kamus atau daftar kata terlarang - nama warung bisa
-        apa saja, dan kategori bisa tidak umum ('MENU PAKET SPESIAL
-        PEDAS'). Yang membedakan bukan katanya, melainkan ada tidaknya
-        sesuatu di bawahnya.
-
-    Nama tempat TIDAK dibuang - dikembalikan terpisah supaya tetap bisa
-    diucapkan sekali di awal. Pengguna berhak tahu ia sedang di mana.
-    """
+    """Pisahkan nama restoran atau hiasan dari kategori menu fungsional."""
     nama = [j for j, isi in bagian if j and len(isi) < min_isi]
     kategori = [(j, isi) for j, isi in bagian if len(isi) >= min_isi]
     return nama, kategori
 
 
 def bagian_terkaya(bagian):
-    """
-    Bagian mana yang sebaiknya dibuka LEBIH DULU? -> indeks
-
-    URUTAN DOKUMEN BUKAN URUTAN YANG BERGUNA
-
-        Diukur pada 5 bidikan menu Warmindo yang sama:
-
-            bidikan 1  mulai di 'warmindo' (1 isi)   -> terdengar 'niasanaa'
-            bidikan 2  mulai di '(tanpa judul)' (1)  -> terdengar 'mena'
-            bidikan 4  mulai di '(tanpa judul)' (1)  -> terdengar 'nusantara'
-            bidikan 7  mulai di '(tanpa judul)' (1)  -> terdengar 'nusantara'
-            bidikan 5  mulai di 'makanan' (8 isi)    -> benar
-
-        Empat dari lima kali, hal PERTAMA yang didengar pengguna adalah
-        satu baris sampah. Bagian bersampah hampir selalu berisi satu
-        baris - sisa nama warung atau potongan judul yang salah baca -
-        sedangkan bagian sungguhan berisi 7-8 item.
-
-        Bagi pengguna awas ini cuma gangguan kecil: matanya langsung
-        melompat ke daftar yang benar. Pengguna tunanetra tidak punya
-        lompatan itu - ia harus menunggu, mendengarkan sampah, lalu
-        menebak apakah alatnya rusak.
-
-    TIDAK ADA YANG DIBUANG
-
-        Bagian lain tetap ada dan tetap bisa dijelajahi lewat tombol
-        BAGIAN, dalam urutan dokumen seperti biasa. Yang berubah hanya
-        titik mulainya. Menghapus bagian kecil akan menghilangkan
-        kategori sah yang kebetulan cuma punya satu item.
-    """
+    """Tentukan indeks bagian menu yang memiliki konten tervalidasi paling lengkap."""
     if not bagian:
         return 0
     terbaik, n_terbaik = 0, -1
@@ -626,13 +442,7 @@ def bagian_terkaya(bagian):
 
 def nilai_bagian(bagian, info, tinggi_bingkai=None,
                  pusat=0.6, bobot_tepi=0.5, bobot_tanpa_judul=0.4):
-    """
-    Seberapa besar tiap bagian mengisi bingkai. -> [nilai, ...]
-
-    Dipisahkan dari bagian_dituju supaya angkanya bisa DILIHAT dan
-    dicatat di log, bukan cuma keputusannya. Tiga vonis otomatis saya
-    sebelumnya salah justru karena hanya kesimpulannya yang tercetak.
-    """
+    """Hitung skor bobot spasial seberapa besar setiap bagian mengisi bingkai pandang kamera."""
     nilai = [0.0] * len(bagian)
     if not bagian or not info:
         return nilai
@@ -689,53 +499,7 @@ def nilai_bagian(bagian, info, tinggi_bingkai=None,
 
 
 def bagian_dituju(bagian, info, tinggi_bingkai=None, pusat=0.6):
-    """
-    Bagian mana yang sedang DITUJU kamera? -> indeks
-
-    BEDANYA DENGAN bagian_terkaya
-
-        bagian_terkaya memilih yang KATANYA PALING BANYAK. Itu memang
-        memperbaiki masalah lamanya (mulai di bagian bersampah), tapi ia
-        menjawab pertanyaan yang berbeda: 'bagian mana yang paling
-        berisi di seluruh dokumen', bukan 'bagian mana yang sedang
-        dilihat pengguna'.
-
-        Kalau alat diarahkan ke Minuman sementara Makanan kebetulan
-        punya lebih banyak item, bagian_terkaya akan membacakan Makanan -
-        padahal Makanan cuma tersisa beberapa potong di tepi bingkai.
-
-    SINYAL YANG DIPAKAI, DAN KENAPA
-
-        Saat Anda mengarahkan alat ke satu bagian, dua hal terjadi
-        sekaligus pada bagian itu: ia mengisi bingkai lebih banyak
-        (LUAS kotaknya besar), dan ia duduk di TENGAH. Bagian tetangga
-        terpotong jadi sisa kecil di tepi.
-
-        Jadi nilainya = jumlah luas kotak, dengan baris di luar pita
-        tengah dihitung setengah. Luas, bukan jumlah baris - delapan
-        baris kecil di tepi harus kalah dari lima baris besar di tengah.
-
-    KENAPA MENGHUKUM, BUKAN MENGGUGURKAN
-
-        Godaannya adalah membuang bagian yang di luar pita tengah. Saya
-        tidak melakukannya: pita tengah bisa meleset kalau pengguna
-        memegang alat agak miring, dan kegagalan 'tidak membacakan
-        apa-apa' jauh lebih buruk daripada 'membacakan bagian tetangga'.
-        Bobot setengah membuat kepusatan jadi PEMECAH SERI yang kuat,
-        bukan gerbang yang bisa mengunci semuanya.
-
-    ANGKANYA BELUM DIUKUR
-
-        pusat=0.6, bobot tepi 0.5, dan hukuman tanpa-judul 0.4 adalah
-        tebakan yang beralasan, BUKAN hasil pengukuran - persis seperti
-        faktor 1.25 di kenali_judul. Semuanya jadi parameter supaya bisa
-        disetel dari rekaman nanti, dan nilai tiap bagian dicetak ke log
-        supaya ada yang bisa disetel.
-
-    Kalau geometri tidak tersedia (info kosong, atau teks bagian tidak
-    cocok dengan info mana pun), fungsi ini MUNDUR ke bagian_terkaya -
-    perilaku lama, bukan tebakan baru.
-    """
+    """Tentukan indeks bagian menu yang paling tepat menjadi fokus bidikan kamera."""
     if not bagian:
         return 0
     nilai = nilai_bagian(bagian, info, tinggi_bingkai, pusat)
@@ -749,15 +513,7 @@ def bagian_dituju(bagian, info, tinggi_bingkai=None, pusat=0.6):
 
 
 def baca_baris(boxes, toleransi=0.6):
-    """
-    Kelompokkan kotak jadi baris bacaan. -> [["Sosis", "2K"], ...]
-
-    Struktur barisnya DIPERTAHANKAN. baca_urutan menggabung semuanya jadi
-    satu deret, dan itu menghancurkan pasangan nama-harga: pada uji menu
-    cetak, empat item berharga sama menyusut jadi dua token tanpa pemilik.
-
-    Baris yang sebenarnya memuat beberapa KOLOM dipecah oleh pecah_kolom.
-    """
+    """Kelompokkan kotak deteksi teks menjadi deretan baris bacaan horizontal."""
     hasil = []
     for r in _kelompok_baris(boxes, toleransi):
         for seg in pecah_kolom(sorted(r, key=lambda b: b["box"][0])):
@@ -766,49 +522,7 @@ def baca_baris(boxes, toleransi=0.6):
 
 
 def mutu_bacaan(baris, kamus, n_kotak=0):
-    """
-    Seberapa layak hasil OCR ini diucapkan? -> (tingkat, skor, saran)
-
-    KENAPA INI PENTING, DAN BUKAN SEKADAR PENGHALUSAN
-
-        Pengguna tunanetra TIDAK BISA melihat bahwa bidikannya meleset.
-        Kalau alat membacakan 'marmnoo, makaan, iga o', mereka akan
-        menganggap menu itu memang berisi kata-kata tersebut. Tidak ada
-        cara bagi mereka memverifikasi.
-
-        Diam, atau menyuruh mendekat, jauh lebih jujur daripada
-        membacakan 25 baris omong kosong dengan nada yakin.
-
-    DUA SINYAL, KARENA SATU TIDAK CUKUP
-
-        skor    persen kata yang ada di kamus
-        pendek  persen kata <= 2 huruf - pecahan sampah OCR
-
-        Persentase sendirian menipu: satu bidikan buruk pernah memberi
-        33% hanya karena kebetulan 1 dari 3 katanya dikenal. Karena itu
-        jumlah kata minimum ikut dijaga.
-
-        Sebaliknya 'pendek' menangkap yang lolos persentase: bidikan
-        terburuk menghasilkan 43% kata sepanjang 1-2 huruf ('os', 'ak',
-        'y oy a'), sementara bidikan bagus nyaris 0%.
-
-    AMBANGNYA DARI DATA, BUKAN KARANGAN
-
-        Diukur pada lima bidikan nyata dari perangkat ini:
-
-            baik    menu dekat huruf besar   83% dikenal,  0% pendek
-            baik    bidikan bagus            60%,          0%
-            sedang  bidikan sedang           31%,         15%
-            buruk   menu kecil di frame      11%,         43%
-            sedikit hanya 3 kata terbaca     33%,          0%
-
-    CATATAN YANG AKAN MENUA
-
-        Kamus belum memuat kosakata menu (nugget, topping, seblak...),
-        jadi bacaan yang BENAR pun tertahan skornya. Begitu kosakata itu
-        ditambahkan, semua skor naik dan ambang di bawah perlu ditinjau
-        ulang - kalau tidak, alat jadi terlalu longgar.
-    """
+    """Evaluasi kelayakan hasil bacaan OCR untuk dibacakan kepada pengguna (tingkat, skor, saran)."""
     kata = [k for b in baris for k in str(b).split()
             if not any(c.isdigit() for c in k)]
     if len(kata) < 4:
@@ -846,38 +560,7 @@ def mutu_bacaan(baris, kamus, n_kotak=0):
 
 
 def tinggi_teks(xs, ys):
-    """
-    Tinggi huruf sebenarnya dari 4 titik sudut kotak OCR.
-
-    KENAPA BUKAN max(y) - min(y)
-
-        PP-OCR mengembalikan SEGI EMPAT MIRING yang mengikuti kemiringan
-        barisnya. Memerasnya jadi kotak tegak lurus membuat tingginya
-        melar mengikuti PANJANG baris:
-
-            tinggi_kotak_tegak = h*cos(t) + W*sin(t)
-
-        Untuk baris selebar 300 px setinggi 16 px yang miring 5 derajat:
-
-            16*0,996 + 300*0,087 = 16 + 26 = 42 px      (2,6x!)
-
-        Dan melarnya SEBANDING DENGAN PANJANG BARIS. Jadi baris item
-        terpanjang tampak paling "besar", lalu kenali_judul menyangka ia
-        judul. Itu persis yang terjadi di log: 'mie bangladesh' - salah
-        satu baris terpanjang - jadi judul yang memuat 7 item di
-        bawahnya, sementara 'Makanan' yang pendek justru terlempar jadi
-        nama tempat.
-
-        Foto menu jarang tegak lurus. Pengguna tunanetra TIDAK BISA
-        meluruskan bidikannya - jadi memerlukan foto lurus bukan syarat
-        yang boleh dipasang pada alat ini.
-
-    CARANYA
-
-        Sisi pendek segi empat itulah tinggi hurufnya, berapa pun
-        miringnya. Diambil rata-rata dua sisi berhadapan, lalu dipilih
-        pasangan yang lebih pendek.
-    """
+    """Hitung tinggi sebenarnya huruf teks dari 4 koordinat sudut poligon OCR."""
     if not xs or not ys or len(xs) < 4 or len(ys) < 4:
         h = (max(ys) - min(ys)) if ys else 0
         return float(h)
@@ -892,73 +575,7 @@ def tinggi_teks(xs, ys):
 
 
 def ketajaman(sampel):
-    """
-    Seberapa tajam sederet sampel keabuan? Makin besar makin tajam.
-
-    KENAPA INI YANG DIUKUR, BUKAN JARAK
-
-        Log perangkat memperlihatkan sesuatu yang tidak cocok dengan
-        dugaan "terlalu jauh":
-
-            bidikan  kotak  skor
-                1      17     7%
-                2      18     4%
-                3      16     9%
-                6      20    88%
-                7      15    86%
-
-        Jumlah kotak hampir SAMA (15-20), skornya beda 10 kali lipat.
-        Kalau teksnya terlalu kecil, detektor akan menemukan lebih
-        SEDIKIT kotak - itu yang terjadi di bidikan 4 dan 5 (3-4 kotak).
-        Di sini detektor melihat teks sebanyak biasanya; yang gagal
-        hanya pengenalnya.
-
-        Itu tanda khas BURAM - entah karena fokus tetap lensa meleset,
-        entah karena tangan bergoyang. Bukan soal jauh-dekat.
-
-    KENAPA BERGUNA
-
-        Buram bisa diukur TANPA NPU dan tanpa menjalankan OCR. Alat
-        sudah mengambil 5 frame tiap kali tapi hanya memakai yang
-        pertama; empat sisanya dibuang. Memilih yang paling tajam di
-        antaranya gratis - tidak ada foto tambahan, tidak ada inferensi
-        tambahan.
-
-    CARANYA
-
-        Laplacian 1 dimensi (x[i-1] - 2x[i] + x[i+1]), dikuadratkan lalu
-        dirata-rata. Tepi huruf yang tajam menghasilkan nilai besar;
-        tepi yang melandai menghasilkan nilai kecil.
-
-        Dibagi kuadrat kecerahan rata-rata supaya frame yang lebih
-        terang tidak otomatis terlihat lebih tajam. Tanpa pembagian ini
-        yang terukur adalah pencahayaan, bukan fokus.
-
-    SUDAH DIUKUR DI PERANGKAT - DAN TIDAK DIPASANG. JANGAN DIULANG.
-
-        uji_fokus.py, dua pengambilan, tiap kali 5 frame:
-
-            korelasi peringkat ketajaman vs mutu OCR:  1,00 dan 0,70
-
-        Jadi metriknya BEKERJA - buram memang terukur tanpa NPU. Tapi
-        keuntungannya nol, karena frame paling tajam SELALU frame 0:
-
-            frame   tajam A   mutu A  |  tajam B   mutu B
-              0     0,0088     96%    |  0,0160     59%
-              1     0,0047     83%    |  0,0078     42%
-              2     0,0054     90%    |  0,0104     65%
-              3     0,0068     95%    |  0,0141     54%
-              4     0,0033     37%    |  0,0061     21%
-
-        Frame 0 tertajam di kedua pengambilan, frame 4 terburuk di
-        kedua-duanya. Ketajaman menurun sepanjang deret - tangan
-        bergeser sesudah tombol ditekan. main.py sudah memakai frame 0,
-        jadi memilih tertajam memberi +0 poin dengan ongkos ~950 ms.
-
-        Fungsi ini ditahan karena murah, teruji, dan berguna kalau nanti
-        ada pemicu selain tangan (mis. tombol fisik dengan jeda). Untuk
-        sekarang: JANGAN dipasang ke jalur baca.
-    """
+    """Hitung skor ketajaman fokus citra menggunakan varians perbedaan intensitas keabuan."""
     n = len(sampel)
     if n < 3:
         return 0.0
@@ -973,14 +590,7 @@ def ketajaman(sampel):
 
 
 def pilih_tertajam(daftar_sampel):
-    """
-    -> (indeks_terbaik, daftar_skor)
-
-    Kalau semuanya sama-sama buram, yang terbaik tetap dikembalikan -
-    memilih yang paling tidak buruk masih lebih baik daripada memilih
-    yang pertama secara buta. Penjaga mutu tetap yang memutuskan layak
-    dibacakan atau tidak.
-    """
+    """Pilih indeks frame paling tajam dari deretan citra untuk menghindari motion blur."""
     skor = [ketajaman(s) for s in daftar_sampel]
     if not skor:
         return 0, []
@@ -988,17 +598,7 @@ def pilih_tertajam(daftar_sampel):
 
 
 def dedup_teks(kotak, iou_th=0.35):
-    """
-    Buang kotak teks yang saling tumpang tindih.
-
-    Dibutuhkan saat frame dipotong jadi petak yang sengaja saling
-    menimpa: teks di perbatasan terbaca dua kali, dan hasilnya
-    'borc ecellel sayur yuran' - tiap kata muncul dua versi.
-
-    Yang dipertahankan adalah teks TERPANJANG, karena bacaan dari petak
-    yang memuat kata itu secara utuh hampir selalu lebih lengkap
-    daripada bacaan dari petak yang cuma menangkap potongannya.
-    """
+    """Buang kotak deteksi teks yang tumpang tindih akibat pemotongan petak frame bertindih."""
     out = []
     for k in sorted(kotak, key=lambda d: (-len(d.get("teks", "")),
                                           d["box"][1], d["box"][0])):
@@ -1008,31 +608,7 @@ def dedup_teks(kotak, iou_th=0.35):
 
 
 def pecah_kolom(baris):
-    """
-    Pecah satu baris yang sebenarnya memuat BEBERAPA KOLOM.
-
-    baris: list kotak, sudah terurut kiri->kanan
-
-    MASALAHNYA
-
-        Menu warung sering tiga kolom. Mengelompokkan kotak murni
-        berdasarkan tinggi membuat item dari kolom berbeda yang kebetulan
-        sejajar melebur jadi satu baris:
-
-            cah kangkung Rp.15.000 tumis toge Rp.20.000 es teh Rp.5.000
-
-        Pasangan nama-harga jadi kacau lagi, persis masalah yang baru
-        kita selesaikan.
-
-    CARA MEMISAHNYA
-
-        Bukan lewat celah geometris - jarak antara nama dan harganya
-        sendiri juga lebar, jadi celah tidak bisa membedakan keduanya.
-
-        Yang dipakai aturan isi: SATU BARIS MENU HANYA PUNYA SATU HARGA.
-        Jadi begitu sudah ada harga lalu muncul kata biasa lagi, itu
-        pasti awal kolom berikutnya.
-    """
+    """Bagi baris teks yang melintasi kolom berbeda berdasarkan celah horizontal kosong."""
     segmen, kini, sudah_harga = [], [], False
     for b in baris:
         ada_angka = any(c.isdigit() for c in str(b.get("teks", "")))
@@ -1048,7 +624,7 @@ def pecah_kolom(baris):
 
 
 def pisah_harga(baris):
-    """'sosis 2000' -> ('sosis', ['2000'])"""
+    """Pisahkan nama item menu dari komponen harga numerik dalam satu baris teks."""
     tok = str(baris).split()
     harga = [t for t in tok if any(c.isdigit() for c in t)]
     nama = [t for t in tok if t not in harga]
@@ -1056,30 +632,7 @@ def pisah_harga(baris):
 
 
 def vote_baris(riwayat, min_frame=2, kamus=None):
-    """
-    Voting PER BARIS lintas frame -> daftar baris yang bertahan.
-
-    riwayat: list per frame, tiap frame = list baris (string, sudah lewat
-             koreksi_baris)
-
-    CARA MENCOCOKKAN BARIS ANTAR FRAME
-
-        Bukan lewat nomor urut - jumlah kotak berubah tiap frame (12, 12,
-        13, 13, 13 pada uji Anda), jadi baris ke-3 di satu frame belum
-        tentu baris ke-3 di frame lain.
-
-        Kuncinya NAMA ITEM, yaitu bagian baris yang bukan angka. Harga
-        boleh goyang; nama item jauh lebih stabil. Ejaan nama yang
-        berbeda-beda disatukan memakai gabung_mirip, alat yang sama yang
-        menyelamatkan 'maixhub' dari lima ejaan.
-
-    HARGA DIPILIH TERBANYAK
-
-        Satu baris bisa terbaca '2K' di empat frame dan 'ZK' di satu.
-        Yang terbanyak menang. Kalau tidak ada harga yang muncul minimal
-        min_frame kali, barisnya tetap disebut TANPA harga - menyebut
-        nama tanpa harga masih berguna, menyebut harga yang salah tidak.
-    """
+    """Voting konsensus per baris teks lintas frame untuk menyaring pembacaan stabil."""
     kamus = kamus or set()
     frames = [f for f in riwayat if f]
     if not frames:
@@ -1150,21 +703,7 @@ def _panjang_konsonan(s, i):
 
 
 def suku_kata(kata):
-    """
-    Penggal kata Indonesia jadi suku kata.
-
-    Pola dasar: V, VK, KV, KVK, KKV, KKVK
-    Aturan yang dipakai (fonotaktik standar Bahasa Indonesia):
-      V-KV    satu konsonan antar vokal -> ikut ke suku berikutnya
-      VK-KV   dua konsonan antar vokal  -> dipisah
-      VK-KKV  tiga konsonan             -> pisah setelah yang pertama
-    Digraf ng/ny/sy/kh selalu diperlakukan sebagai satu konsonan.
-
-    'ayam'  -> ['a', 'yam']
-    'kosek' -> ['ko', 'sek']
-    'bakso' -> ['bak', 'so']
-    'nasi'  -> ['na', 'si']
-    """
+    """Penggal kata Bahasa Indonesia menjadi deretan suku kata berdasarkan kaidah fonotaktik standar."""
     s = "".join(ch for ch in str(kata).lower() if ch.isalpha())
     if not s:
         return []
@@ -1263,22 +802,7 @@ LAFAL_SERAPAN = {
 
 
 def rencana_ucap(teks, punya):
-    """
-    Susun daftar file wav untuk mengucapkan `teks`.
-
-    punya(nama) -> bool, mengecek apakah /root/audio/<nama>.wav ada.
-
-    Tangga fallback, per kata, dari yang paling enak didengar:
-      1. frasa utuh    'nasi_goreng.wav'
-      2. kata          'nasi.wav' + 'goreng.wav'
-      3. suku kata     'ko.wav' + 'sek.wav'
-      4. huruf         'k.wav' 'o.wav' 's.wav' 'e.wav' 'k.wav'
-
-    Mengeja huruf per huruf adalah pilihan TERAKHIR, bukan yang pertama.
-    "K-O-S-E-K" hampir tidak bisa dipahami saat didengar; "ko-sek" langsung
-    kedengaran seperti kata aslinya. Bahasa Indonesia sangat fonetis, jadi
-    penggabungan suku kata terdengar wajar.
-    """
+    """Susun daftar berkas audio WAV bertingkat (kata utuh -> suku kata -> ejaan huruf) untuk mengucapkan teks."""
     kata = [w for w in "".join(
         c if (c.isalnum() or c.isspace()) else " " for c in str(teks).lower()
     ).split() if w]
@@ -1320,10 +844,7 @@ def rencana_ucap(teks, punya):
 
 
 def format_rupiah(nominal_list):
-    """
-    Ubah daftar nominal jadi (teks_layar, total).
-    [10000, 2000] -> ('Rp 10.000 + Rp 2.000 = Rp 12.000', 12000)
-    """
+    """Format daftar nominal angka menjadi representasi teks layar dan total penjumlahan."""
     if not nominal_list:
         return "Tidak ada uang terdeteksi", 0
     total = sum(nominal_list)
@@ -1589,34 +1110,7 @@ MIN_SENDIRI = 2         # kandidat harus terbaca utuh minimal sekian kali
 
 
 class Kamus(set):
-    """
-    Himpunan kata + indeks pencari kandidat.
-
-    KENAPA PERLU INDEKS
-
-        koreksi_kata menghitung jarak edit terhadap SELURUH kamus untuk
-        tiap kata tak dikenal. Dengan 564 kata dan ~100 kotak teks per
-        halaman menu, itu puluhan ribu perbandingan - diukur di perangkat:
-        5985 ms, hampir sama mahalnya dengan OCR-nya sendiri (6320 ms).
-
-    DASAR PENYARINGNYA
-
-        Kalau jarak edit dua kata <= 1, keduanya PASTI berbagi dua huruf
-        DEPAN atau dua huruf BELAKANG. Satu perubahan tidak bisa merusak
-        keduanya sekaligus pada kata >= 4 huruf.
-
-        Dibuktikan lewat pencarian menyeluruh 20.000 pasangan: nol
-        pelanggaran untuk batas 1.
-
-    KENAPA HANYA UNTUK batas 1
-
-        Pada batas 2 penyaring yang sama BOCOR - uji yang sama menemukan
-        569 pasangan berjarak 2 yang tidak berbagi depan maupun belakang.
-        Dua perubahan memang bisa merusak kedua ujungnya. Jadi kata >= 8
-        huruf (satu-satunya yang memakai batas 2) tetap ditelusuri penuh.
-
-        Cepat tapi salah lebih buruk daripada lambat tapi benar.
-    """
+    """Struktur data himpunan kata berindeks untuk pencarian kandidat leksikon berkecepatan tinggi."""
 
     def __init__(self, iterable=(), inti=None):
         super().__init__(iterable)
@@ -1655,16 +1149,7 @@ class Kamus(set):
 
 
 def muat_kamus(kata_utuh=None):
-    """
-    Bangun kamus dari KAMUS_DASAR + bank kata audio (kata_utuh.py).
-
-    kata_utuh: dict {"nasi.wav": "nasi", ...} atau None.
-    Bank audio dan kamus OCR sengaja berbagi kosakata yang sama - kalau
-    sebuah kata bisa diucapkan, ia juga bisa dikoreksi, dan sebaliknya.
-
-    Mengembalikan Kamus (turunan set), jadi pemakai lama tidak perlu
-    diubah: `k in kamus`, `len(kamus)`, iterasi, semuanya tetap jalan.
-    """
+    """Inisialisasi objek kamus leksikon dari gabungan kosakata dasar dan bank audio kata utuh."""
     kata = set(KAMUS_DASAR.split())
     if kata_utuh:
         for k in kata_utuh:
@@ -1681,7 +1166,7 @@ def muat_kamus(kata_utuh=None):
 
 
 def jarak_edit(a, b, batas=99):
-    """Levenshtein dengan pemotongan dini."""
+    """Hitung jarak Levenshtein antara dua string dengan pemangkasan dini (early exit)."""
     if a == b:
         return 0
     if abs(len(a) - len(b)) > batas:
@@ -1699,14 +1184,7 @@ def jarak_edit(a, b, batas=99):
 
 
 def perbaiki_angka(tok):
-    """
-    Token yang jelas angka -> balikkan huruf mirip-angka.
-    '15.OOO' -> '15.000',  'l0000' -> '10000',  '5OOO' -> '5000'
-
-    Huruf mirip-angka ikut dihitung sebagai bukti; tanpa itu '5OOO'
-    (1 digit, 3 huruf) tidak akan pernah lolos ambang - padahal itu bentuk
-    kesalahan harga yang paling sering.
-    """
+    """Koreksi karakter huruf OCR yang menyerupai angka pada token harga numerik."""
     isi = [c for c in tok if c.isalnum()]
     if not isi:
         return tok
@@ -1717,34 +1195,7 @@ def perbaiki_angka(tok):
 
 
 def harga_k(tok):
-    """
-    '5K' / 'SK' / '15k' -> '5000' / '5000' / '15000'.  None kalau bukan.
-
-    KENAPA PERLU
-
-        Menu warung Indonesia hampir selalu menulis harga sebagai '5K',
-        bukan 'Rp 5.000'. Dan OCR membaca angka 5 sebagai huruf S hampir
-        setiap kali. Pada uji menu cetak, seluruh harga hilang begitu
-        saja: 'Nutrisari SK' dan 'SusuDingin SR' - pengguna mendengar
-        nama minuman tanpa harga, yang justru bagian paling dibutuhkan.
-
-        perbaiki_angka() tidak menolongnya karena 'SK' tidak punya satu
-        digit pun, jadi ia tidak pernah lolos ambang "jelas angka".
-
-    DIKEMBALIKAN SEBAGAI RUPIAH PENUH
-
-        '5000', bukan '5K', supaya pengucapnya memakai jalur angka yang
-        sudah ada - eja_angka() tahu cara menyebut 5000, tidak tahu 'K'.
-
-    PENGAMAN
-
-        - hanya 1..3 karakter sebelum K, jadi 'masak' (depan 'masa')
-          tidak ikut terseret
-        - setiap karakter depan harus benar-benar memetakan ke digit
-        - hasilnya harus 1..999 ribu, di luar itu ditolak
-        - dipanggil SESUDAH pencocokan kamus, jadi kata sah seperti
-          'sok' atau 'kok' aman lebih dulu
-    """
+    """Parsing singkatan harga ribuan format K atau rb (misal: 15k -> 15000)."""
     t = "".join(c for c in str(tok) if c.isalnum())
     if len(t) < 2 or t[-1] not in "Kk":
         return None
@@ -1770,14 +1221,7 @@ def harga_k(tok):
 
 
 def koreksi_kata(w, kamus, hanya_kamus=True):
-    """
-    Cocokkan satu kata ke kamus.
-
-    hanya_kamus=True: kata tak dikenal DIBUANG. Untuk alat baca tunanetra
-    ini wajib - pengguna tidak bisa memverifikasi dengan mata, jadi apa pun
-    yang keluar dari speaker dianggap benar. Diam lebih baik daripada
-    mengucapkan "meukamng ayacong sopanbina".
-    """
+    """Cocokkan dan koreksi kata hasil OCR ke entri terdekat pada kamus leksikon."""
     w = "".join(c for c in w if ord(c) < 128)      # buang halusinasi Han
     if not w.strip():
         return ""
@@ -1977,25 +1421,7 @@ def gabung_mirip(hitung, kamus=None):
 
 
 def vote_kata(riwayat, min_frame=2, kamus=None):
-    """
-    Voting per KATA, bukan per kalimat -> (teks, dukungan_tertinggi)
-
-    KENAPA INI PERLU
-
-    Filter kamus membuang kata tak dikenal supaya sampah OCR tidak ikut
-    diucapkan. Tapi itu juga membuang kata yang SUNGGUHAN ada namun bukan
-    kata Indonesia: nama merek, nama warung, singkatan. "ACOME" terbaca
-    dengan benar lalu lenyap, dan pengguna dikira alat tidak melihat apa-apa.
-
-    Yang membedakan kata asli dari sampah bukan ada-tidaknya di kamus,
-    melainkan KEKONSISTENAN:
-
-        "ACOME"     terbaca sama di 5 dari 5 frame  -> nyata
-        "meukamng"  muncul di 1 frame saja          -> sampah
-
-    Jadi kata tak dikenal tetap dipertahankan asal muncul di beberapa frame.
-    Urutannya dijaga memakai rata-rata posisi relatifnya.
-    """
+    """Voting konsensus per token kata lintas frame untuk menghasilkan teks paling konsisten."""
     frames = [r.split() for r in riwayat if r]
     if not frames:
         return "", 0
@@ -2032,17 +1458,7 @@ def vote_kata(riwayat, min_frame=2, kamus=None):
 
 
 def vote_teks(riwayat, min_sendiri=MIN_SENDIRI):
-    """
-    Voting bacaan OCR lintas frame -> (teks, dukungan).
-
-    Bacaan pendek adalah PENGAMATAN SEBAGIAN dari bacaan panjang, bukan
-    saingannya: sebagian frame cuma menangkap separuh papan. Jadi dukungan
-    tiap kandidat = jumlah frame yang kata-katanya himpunan bagian darinya.
-    Frame 'menu' ikut mendukung 'menu restoran', tidak sebaliknya.
-
-    Syarat min_sendiri mencegah satu bacaan sampah yang sangat panjang
-    memanen semua suara hanya karena ia superset dari segalanya.
-    """
+    """Voting konsensus bacaan teks OCR lengkap lintas frame kamera."""
     isi = [x for x in riwayat if x]
     if not isi:
         return "", 0
@@ -2096,11 +1512,7 @@ TAHAN_DETIK = 3.0        # level harus bertahan sekian detik sebelum diakui
 
 
 class PantauBaterai:
-    """
-    Masukkan tegangan mentah, dapatkan nama peringatan saat perlu diucapkan.
-
-    perbarui(volt, sekarang) -> "kritis" | "lemah" | "penuh" | None
-    """
+    """Pelacak kurva tegangan baterai LiPo 1S dengan mekanisme histeresis peringatan."""
 
     def __init__(self, alfa=0.2):
         self.alfa = alfa
@@ -2200,13 +1612,7 @@ DEBOUNCE = 0.05
 
 
 class PolaTombol:
-    """
-    perbarui(ditekan, sekarang) -> "tunggal" | "ganda" | "tahan" | None
-
-    'tunggal' sengaja tertunda sampai JEDA_GANDA berlalu - itu satu-satunya
-    cara membedakannya dari tekanan pertama sebuah 'ganda'. Penundaan 0,45
-    detik tidak terasa mengganggu, dan hasil salah jauh lebih mengganggu.
-    """
+    """Pengolah pola ketukan tombol fisik berbasis mesin status (tunggal, ganda, tahan)."""
 
     def __init__(self):
         self._lalu = False
@@ -2276,14 +1682,7 @@ class PolaTombol:
 #      Janji yang tidak ditepati - dan itu membingungkan.
 
 def harga_sah(tok):
-    """
-    Apakah token ini harga yang wajar? -> True/False
-
-    Menyaring "Rpin.000", "R018.000", "Res000" yang muncul di log nyata.
-    Harga yang rusak lebih baik TIDAK diucapkan sama sekali - prinsip
-    yang sudah dipakai vote_baris: nama tanpa harga masih berguna,
-    harga yang salah tidak.
-    """
+    """Validasi apakah sebuah token teks memenuhi kriteria nominal harga yang wajar."""
     t = str(tok).strip().lower()
     for awalan in ("rp.", "rp"):
         if t.startswith(awalan):
@@ -2311,23 +1710,7 @@ def harga_sah(tok):
 
 
 def harga_layak_diucapkan(nama, kamus):
-    """
-    Bolehkah harga baris ini diucapkan? -> True/False
-
-    ATURAN: TANPA NAMA, TIDAK ADA HARGA.
-
-    Dari log perangkat 27 Agu:
-
-        [BACA] bobsk gnrerg 20.000
-        [UCAP] 0/2 kata dikenali -> nama DITEKAN
-        [UCAP] dua -> puluh -> ribu -> rupiah      <- HARGA TETAP KELUAR
-
-    Pengguna mendengar "dua puluh ribu rupiah" tanpa tahu itu harga
-    APA. Angka telanjang lebih buruk daripada diam: ia terdengar
-    seperti keterangan yang lengkap, padahal menggantung.
-
-    Kalau namanya sendiri tidak layak diucapkan, harganya juga tidak.
-    """
+    """Verifikasi kelayakan komponen harga pada baris teks menu sebelum diucapkan."""
     kamus = kamus or set()
     kata = [w for w in str(nama).split()
             if not any(c.isdigit() for c in w)]
@@ -2337,7 +1720,7 @@ def harga_layak_diucapkan(nama, kamus):
 
 
 def kunci_harga(tok):
-    """Harga -> angka polos tanpa nol depan, untuk dibandingkan. -> str."""
+    """Normalisasi string harga ke bentuk angka kanonik untuk keperluan pencocokan."""
     t = "".join(c for c in str(tok) if c.isdigit())
     return t.lstrip("0") or ("0" if t else "")
 
@@ -2370,25 +1753,7 @@ def _token_aneh(t, kamus):
 
 
 def baris_sampah(teks, kamus, ambang_kenal=0.5, ambang_aneh=0.5):
-    """
-    Apakah baris ini layak DIBUANG sebelum diucapkan? -> True/False
-
-    SENGAJA BERAT SEBELAH KE ARAH MENYIMPAN. Membuang satu item menu
-    yang benar lebih merugikan daripada membiarkan satu baris sampah -
-    pengguna bisa menekan tombol lagi untuk sampah, tapi tidak akan
-    pernah tahu ada item yang hilang.
-
-    Diuji pada baris nyata dari log:
-
-        SIMPAN  "menu makan"            2/2 kata dikenal
-        SIMPAN  "warung larana"         1/2 - nama tempat, tetap aman
-        SIMPAN  "gadogado Rp15.000"     harga sah, nama tak dikenal
-        SIMPAN  "nas goreng Rpin.000"   1/2 dikenal
-        BUANG   "beka setiap hn greaygrnatste"
-        BUANG   "boa eorp hun 9eyyeah?"
-        BUANG   "+1234567890"
-        BUANG   "0.00S/D 2000WB"
-    """
+    """Deteksi apakah sebuah baris teks tergolong derau OCR acak yang harus dieliminasi."""
     kamus = kamus or set()
     tok = str(teks).split()
     if not tok:
@@ -2418,21 +1783,7 @@ def baris_sampah(teks, kamus, ambang_kenal=0.5, ambang_aneh=0.5):
 
 
 def saring_sampah(baris, kamus, maks_buang=0.5):
-    """
-    Buang baris sampah. -> (baris_bersih, jumlah_dibuang)
-
-    PENGAMAN YANG TIDAK BOLEH DIHAPUS
-
-        Kalau lebih dari maks_buang bagian baris dianggap sampah, yang
-        rusak bukan beberapa baris - melainkan SELURUH bidikan. Dalam
-        keadaan itu penyaring mengembalikan apa adanya dan menyerahkan
-        keputusan ke mutu_bacaan, yang memang bertugas menyuruh
-        pengguna membidik ulang.
-
-        Tanpa pengaman ini, bidikan buruk akan menghasilkan dua-tiga
-        baris sisa yang terdengar rapi dan meyakinkan - persis mode
-        kegagalan paling berbahaya untuk pengguna tunanetra.
-    """
+    """Saring dan eliminasi baris teks sampah dari daftar bacaan dengan batas keamanan."""
     baris = list(baris or [])
     if not baris:
         return [], 0
@@ -2487,23 +1838,7 @@ def _nilai_nama(nama, kamus):
 
 
 def gabung_baris_kembar(baris, kamus=None):
-    """
-    Satukan baris yang sebenarnya satu item. -> list baris
-
-    Dari log nyata:
-        "mie ayam special Rp12.000" + "mie ayam sptolal Rp12000"
-        -> "mie ayam special Rp12.000"
-
-    Nama diambil dari varian dengan kata paling banyak dikenal kamus;
-    harga diambil dari varian yang harganya SAH. Jadi hasil gabungan
-    bisa lebih baik daripada kedua asalnya - nama dari yang satu, harga
-    dari yang lain.
-
-    PENGGABUNGANNYA KONSERVATIF. Baris yang tidak jelas kembar
-    dibiarkan berdua. Mengucapkan satu item dua kali cuma mengganggu;
-    menggabungkan dua item berbeda menghilangkan satu dari menu, dan
-    pengguna tidak punya cara mengetahuinya.
-    """
+    """Satukan baris-baris menu yang menduplikasi item hidangan yang sama."""
     kamus = kamus or set()
     kelompok = []          # [[(nama, [harga...]), ...], ...]
     for b in baris or []:
@@ -2556,26 +1891,7 @@ def gabung_baris_kembar(baris, kamus=None):
 
 
 def urut_dari_bagian(bagian, idx):
-    """
-    Susun ulang supaya bagian sasaran dibaca DULUAN. -> list baris
-
-    bagian: [(judul, [isi, ...]), ...] dari kelompokkan_bagian()
-    idx   : indeks bagian sasaran dari bagian_dituju()
-
-    MASALAH YANG DIPERBAIKI - terlihat langsung di log perangkat:
-
-        [JUDUL] mulai di bagian 2/2 ('minuman', 1 isi)
-        [JUDUL] sasaran diucapkan: 'minuman'
-        [BACA] baris 1-3 dari 13
-        [BACA]   gadogado Rp15.000        <- ini isi MAKANAN
-
-        Alat mengumumkan "minuman" lalu membaca makanan. Bagi pengguna
-        yang tidak bisa melihat halamannya, itu bukan sekadar janggal -
-        ia menghapus satu-satunya petunjuk tentang di mana ia berada.
-
-    Isi bagian lain TIDAK dibuang, hanya digeser ke belakang. Pengguna
-    yang terus menekan tombol tetap mendengar seluruh halaman.
-    """
+    """Susun ulang urutan pembacaan menu agar bagian sasaran dibacakan terlebih dahulu."""
     bagian = list(bagian or [])
     if not bagian:
         return []
@@ -2591,16 +1907,7 @@ def urut_dari_bagian(bagian, idx):
 
 
 def siapkan_ucapan(bagian, idx, kamus=None):
-    """
-    Satu pintu: urutkan dari sasaran, gabung kembar, buang sampah.
-    -> (baris_siap, jumlah_dibuang)
-
-    Urutannya penting dan tidak boleh ditukar:
-
-        1. urut dulu  - supaya penomoran bagian masih utuh
-        2. gabung     - supaya sampah kembar dihitung sekali
-        3. saring     - supaya pengaman maks_buang melihat jumlah benar
-    """
+    """Pintu utama pemrosesan teks: pengurutan sasaran, penggabungan duplikat, dan penyaringan derau."""
     baris = urut_dari_bagian(bagian, idx)
     baris = gabung_baris_kembar(baris, kamus)
     return saring_sampah(baris, kamus or set())

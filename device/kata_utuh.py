@@ -1,11 +1,9 @@
-"""Bank kata utuh Bahasa Indonesia - dibuat gen_kata.py
-559 entri
-
-Gabungkan ke TTSGen.py:
-    from kata_utuh import KATA_UTUH
-    DAFTAR_AUDIO_SISTEM.update(KATA_UTUH)
 """
+Bank Kosakata Audio Utuh Bahasa Indonesia untuk Sigap Netra.
 
+Memetakan nama berkas audio WAV ke kata dasar ucapan (nominal Rupiah,
+istilah kuliner, menu makanan/minuman, dan penunjuk kuantitas).
+"""
 KATA_UTUH = {
     "nol.wav": "nol",
     "satu.wav": "satu",
