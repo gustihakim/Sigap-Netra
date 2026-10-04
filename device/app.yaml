@@ -1,0 +1,18 @@
+id: aplikasi_utama
+name: Sigap Netra
+name[id]: Sigap Netra
+version: 1.0.0
+author: GHTW Team
+icon: icon.png
+desc: Alat bantu baca tunanetra berbasis tombol fisik (A23) & layar sentuh.
+files:
+  - app.yaml
+  - icon.png
+  - main.py
+  - sigap_core.py
+  - sigap_api_server.py
+  - kata_utuh.py
+  - models/yolo11n_rupiah_delta_int8.mud
+  - models/yolo11n_rupiah_delta_int8.cvimodel
+  - models/yolo11n_rupiah_delta_bf16.mud
+  - models/yolo11n_rupiah_delta_bf16.cvimodel
