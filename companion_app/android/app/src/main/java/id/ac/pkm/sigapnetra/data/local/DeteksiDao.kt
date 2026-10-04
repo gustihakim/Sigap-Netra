@@ -18,9 +18,7 @@ interface DeteksiDao {
     @Query("SELECT * FROM deteksi WHERE id = :id LIMIT 1")
     suspend fun getDeteksiById(id: Long): Deteksi?
 
-    /**
-     * Idempotent insert: Jika dedupHash sudah ada, abaikan tanpa error.
-     */
+    /** Memasukkan baris deteksi secara idempoten mengabaikan duplikasi hash. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(deteksiList: List<Deteksi>): List<Long>
 

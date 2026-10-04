@@ -8,10 +8,7 @@ import android.net.NetworkRequest
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
-/**
- * Pengelola Jaringan Wi-Fi Hotspot Lokal (Bagian 7a)
- * Mengatasi jebakan Android yang merutekan HTTP ke data seluler saat hotspot tidak memiliki akses internet.
- */
+/** Pengelola koneksi Wi-Fi lokal untuk mengikat proses ke jaringan hotspot tanpa internet. */
 class SigapNetworkManager(private val context: Context) {
 
     private val connectivityManager =

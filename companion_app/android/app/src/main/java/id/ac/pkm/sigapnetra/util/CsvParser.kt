@@ -15,13 +15,7 @@ data class HasilParseDeteksi(
 
 object CsvParser {
 
-    /**
-     * Parsing CSV Uji Kamera (Bagian 5.1):
-     * - Kolom objek dan link_excel opsional
-     * - link_excel diabaikan
-     * - Buang baris dengan ketajaman = -1 dan berkas = "-"
-     * - Buang baris jika jalur tidak valid
-     */
+    /** Mengurai teks CSV uji kamera menjadi daftar rekaman valid dan jumlah baris rusak. */
     fun parseUjiKameraCsv(csvText: String, deviceId: String, sessionId: String): HasilParseRekaman {
         val lines = csvText.lines().map { it.trim() }.filter { it.isNotEmpty() }
         if (lines.isEmpty()) return HasilParseRekaman(emptyList(), 0)
@@ -92,10 +86,7 @@ object CsvParser {
         return HasilParseRekaman(barisValid, barisRusak)
     }
 
-    /**
-     * Parsing CSV Deteksi (Bagian 5.2):
-     * Format: seq,ts_iso,type,raw_value,confidence,distance_cm,model_ver,latency_ms,thumb
-     */
+    /** Mengurai teks CSV deteksi menjadi daftar entitas deteksi dan jumlah baris rusak. */
     fun parseDeteksiCsv(csvText: String, deviceId: String, sessionId: String): HasilParseDeteksi {
         val lines = csvText.lines().map { it.trim() }.filter { it.isNotEmpty() }
         if (lines.isEmpty()) return HasilParseDeteksi(emptyList(), 0)

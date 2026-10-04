@@ -4,9 +4,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-/**
- * Uji Kamera Jalur A/B (Bagian 5.3)
- */
+/** Entitas rekaman pengujian kamera jalur lama dan baru. */
 @Entity(
     tableName = "rekaman",
     indices = [Index(value = ["dedupHash"], unique = true)]

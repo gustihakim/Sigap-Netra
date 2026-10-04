@@ -3,10 +3,7 @@ package id.ac.pkm.sigapnetra.data.model
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-/**
- * Anotasi Manusia (Bagian 5.3) - TERPISAH dari data mentah.
- * Memungkinkan data mentah tetap utuh sebagai bukti dan mendukung validasi ulang.
- */
+/** Entitas anotasi validasi pengguna yang terpisah dari data mentah asli. */
 @Entity(tableName = "validasi")
 data class Validasi(
     @PrimaryKey val deteksiId: Long,

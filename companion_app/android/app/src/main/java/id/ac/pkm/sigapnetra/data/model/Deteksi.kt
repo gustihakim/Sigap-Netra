@@ -4,10 +4,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-/**
- * Data Mentah Deteksi (Bagian 5.3) - IMMUTABLE (Jangan pernah di-UPDATE).
- * deduplikasi mengandalkan dedupHash unik ("$deviceId|$seq|$tsIso").
- */
+/** Entitas data mentah deteksi bersifat tetap dengan deduplikasi berbasis hash. */
 @Entity(
     tableName = "deteksi",
     indices = [Index(value = ["dedupHash"], unique = true)]

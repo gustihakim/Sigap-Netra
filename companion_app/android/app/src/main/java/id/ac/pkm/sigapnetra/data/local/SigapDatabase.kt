@@ -30,10 +30,7 @@ abstract class SigapDatabase : RoomDatabase() {
     abstract fun validasiDao(): ValidasiDao
     abstract fun rekamanDao(): RekamanDao
 
-    /**
-     * Pola Transaksi Atomik Komit (Bagian 6):
-     * Simpan status sesi TERSIMPAN dan seluruh baris deteksi dalam SATU transaksi Room.
-     */
+    /** Pola transaksi atomik komit untuk menyimpan status sesi dan deteksi sekaligus. */
     @Transaction
     suspend fun komitDeteksi(sesi: Sesi, baris: List<Deteksi>) {
         sesiDao().insert(sesi.copy(status = StatusSesi.TERSIMPAN))

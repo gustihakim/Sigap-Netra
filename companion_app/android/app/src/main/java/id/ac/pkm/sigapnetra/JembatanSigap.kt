@@ -1,4 +1,4 @@
-package com.example.sigapnetra
+package id.ac.pkm.sigapnetra
 
 import android.app.Activity
 import android.content.Context
@@ -8,8 +8,8 @@ import android.util.Base64
 import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
-import com.example.sigapnetra.util.CsvParser
-import com.example.sigapnetra.util.UjiTanda
+import id.ac.pkm.sigapnetra.util.CsvParser
+import id.ac.pkm.sigapnetra.util.UjiTanda
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import kotlinx.coroutines.CoroutineScope
@@ -27,11 +27,7 @@ import java.io.FileOutputStream
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
-/**
- * JembatanSigap.kt
- * Komunikasi JavaScript <-> Kotlin yang 100% aman (Crash-Proof),
- * menangani sinkronisasi HTTP MaixCAM, penyimpanan lokal, pemuatan thumbnail, dan statistik Uji Tanda.
- */
+/** Jembatan komunikasi JavaScript dan Kotlin untuk sinkronisasi HTTP, penyimpanan lokal, dan Uji Tanda. */
 class JembatanSigap(
     private val activity: Activity,
     private val webView: WebView
@@ -225,9 +221,7 @@ class JembatanSigap(
         return digest.joinToString("") { "%02x".format(it) }
     }
 
-    // ========================================================================
-    // 1. BERANDA
-    // ========================================================================
+    // 1. Beranda
 
     @JavascriptInterface
     fun muatBeranda() {
@@ -269,9 +263,7 @@ class JembatanSigap(
         }
     }
 
-    // ========================================================================
-    // 2. SINKRONISASI HTTP (BAGIAN 6)
-    // ========================================================================
+    // 2. Sinkronisasi HTTP
 
     @JavascriptInterface
     fun sinkronkan() {
@@ -284,7 +276,7 @@ class JembatanSigap(
             }
 
             try {
-                // --- LANGKAH 0: MENYAMBUNG (DENGAN AUTO-FALLBACK IP) ---
+                // Langkah 0: Menyambung dengan fallback IP otomatis
                 val kandidatHost = listOf(hostPerangkat, "192.168.137.81", "10.66.18.18").distinct()
                 var baseUrl = ""
                 var healthJson = JSONObject()
@@ -320,7 +312,7 @@ class JembatanSigap(
 
                 updateLangkah(0, "usai", "$idPerangkat ($pendingRows baris)")
 
-                // --- LANGKAH 1: MENYEGEL BERKAS ---
+                // Langkah 1: Menyegel berkas log aktif
                 updateLangkah(1, "jalan", "Menyegel log aktif...")
                 val reqSeal = Request.Builder().url("$baseUrl/session/seal")
                     .addHeader("X-Device-Token", tokenPerangkat)
@@ -339,7 +331,7 @@ class JembatanSigap(
 
                 updateLangkah(1, "usai", "$rowCount baris ($sessionId)")
 
-                // --- LANGKAH 2: MENGUNDUH CSV ---
+                // Langkah 2: Mengunduh berkas data CSV
                 updateLangkah(2, "jalan", "Mengunduh data...")
                 val reqCsv = Request.Builder().url("$baseUrl/session/$sessionId/csv")
                     .addHeader("X-Device-Token", tokenPerangkat).get().build()
@@ -353,7 +345,7 @@ class JembatanSigap(
                 val csvBytes = respCsv.body?.bytes() ?: ByteArray(0)
                 updateLangkah(2, "usai", "${(csvBytes.size / 1024.0).toInt()} KB")
 
-                // --- LANGKAH 3: MEMERIKSA KEUTUHAN (SHA-1) ---
+                // Langkah 3: Memeriksa keutuhan checksum SHA-1
                 updateLangkah(3, "jalan", "Memeriksa keutuhan...")
                 val unduhSha = hitungSha1Bytes(csvBytes)
                 if (simulasiState["simRusak"] == true) {
@@ -365,7 +357,7 @@ class JembatanSigap(
                     updateLangkah(3, "usai", "SHA-1 valid")
                 }
 
-                // --- LANGKAH 4: MENYIMPAN KE BASIS DATA LOKAL ---
+                // Langkah 4: Menyimpan data ke penyimpanan lokal
                 updateLangkah(4, "jalan", "Menyimpan data...")
                 val csvText = String(csvBytes, Charsets.UTF_8)
                 val parseResult = CsvParser.parseUjiKameraCsv(csvText, idPerangkat, sessionId)
@@ -456,7 +448,7 @@ class JembatanSigap(
                 simpanCacheLokal()
                 updateLangkah(4, "usai", "${parseResult.barisValid.size} baris baru (${daftarPasangan.size} total)")
 
-                // --- LANGKAH 5: MENGHAPUS LOG DI PERANGKAT ---
+                // Langkah 5: Mengosongkan berkas log di perangkat
                 updateLangkah(5, "jalan", "Mengosongkan memori alat...")
                 if (simulasiState["simGagal"] == true) {
                     daftarSesi.add(0, JSONObject().apply {
@@ -507,9 +499,7 @@ class JembatanSigap(
         }
     }
 
-    // ========================================================================
-    // 3. UJI KAMERA & UJI TANDA (BAGIAN 9)
-    // ========================================================================
+    // 3. Uji kamera dan Uji Tanda
 
     @JavascriptInterface
     fun muatUji() {
@@ -591,9 +581,7 @@ class JembatanSigap(
         }
     }
 
-    // ========================================================================
-    // 4. ANTREAN VALIDASI
-    // ========================================================================
+    // 4. Antrean validasi
 
     @JavascriptInterface
     fun muatAntrean(saring: String?) {

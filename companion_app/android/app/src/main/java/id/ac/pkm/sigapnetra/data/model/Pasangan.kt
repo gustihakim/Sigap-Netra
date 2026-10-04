@@ -1,8 +1,6 @@
 package id.ac.pkm.sigapnetra.data.model
 
-/**
- * Model Data Pasangan Uji Kamera (Dibentuk melalui query JOIN A/B)
- */
+/** Model data pasangan uji kamera jalur A dan B hasil gabungan query. */
 data class Pasangan(
     val no: Int,
     val detik: Double,

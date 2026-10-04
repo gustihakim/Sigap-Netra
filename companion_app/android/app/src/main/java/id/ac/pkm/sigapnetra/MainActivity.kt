@@ -1,4 +1,4 @@
-package com.example.sigapnetra
+package id.ac.pkm.sigapnetra
 
 import android.annotation.SuppressLint
 import android.os.Bundle

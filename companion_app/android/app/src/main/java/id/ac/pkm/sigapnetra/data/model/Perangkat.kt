@@ -3,10 +3,7 @@ package id.ac.pkm.sigapnetra.data.model
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-/**
- * Entitas Perangkat (Bagian 5.3)
- * Identitas perangkat adalah deviceId, bukan alamat IP.
- */
+/** Entitas perangkat terdaftar dengan identitas berbasis ID perangkat. */
 @Entity(tableName = "perangkat")
 data class Perangkat(
     @PrimaryKey val deviceId: String,

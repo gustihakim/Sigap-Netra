@@ -21,9 +21,7 @@ object UjiTanda {
         return r
     }
 
-    /**
-     * Menghitung nilai p uji tanda dua arah (Two-sided sign test)
-     */
+    /** Menghitung nilai p uji tanda dua arah (two-sided sign test). */
     fun p(menang: Int, total: Int): Double {
         if (total == 0) return 1.0
         val k = maxOf(menang, total - menang)
@@ -34,9 +32,7 @@ object UjiTanda {
         return minOf(1.0, 2.0 * ekor / 2.0.pow(total.toDouble()))
     }
 
-    /**
-     * Menghitung median dari sekumpulan angka desimal
-     */
+    /** Menghitung median dari sekumpulan nilai desimal. */
     fun median(list: List<Double>): Double {
         if (list.isEmpty()) return 0.0
         val sorted = list.sorted()
@@ -48,12 +44,7 @@ object UjiTanda {
         }
     }
 
-    /**
-     * Evaluasi pengujian sesuai aturan ketat Bagian 9:
-     * - n < 6: Tidak diuji, pValue = null, label = "Jumlah data belum cukup (n < 6)"
-     * - p < 0.05: "Terbukti"
-     * - p >= 0.05: "Belum cukup" / "belum bisa disimpulkan"
-     */
+    /** Evaluasi pengujian statistik uji tanda dua arah berdasarkan signifikansi. */
     fun evaluasi(menang: Int, total: Int, dataLama: List<Double>, dataBaru: List<Double>): HasilUjiStatistik {
         val medLama = median(dataLama)
         val medBaru = median(dataBaru)

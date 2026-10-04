@@ -11,9 +11,7 @@ enum class StatusSesi {
     GAGAL
 }
 
-/**
- * Entitas Sesi Sinkronisasi (Bagian 5.3)
- */
+/** Entitas sesi sinkronisasi data antar perangkat dan aplikasi. */
 @Entity(tableName = "sesi")
 data class Sesi(
     @PrimaryKey val sessionId: String,

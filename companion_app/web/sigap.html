@@ -7,10 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        /* ══════════════════════════════════════════════════════════
-           SIGAP NETRA — Aplikasi Pendamping
-           Basis desain mengikuti SIPETA agar konsisten antar aplikasi.
-           ══════════════════════════════════════════════════════════ */
+        /* Sigap Netra - Aplikasi Pendamping */
 
         /* --- TEMA --- */
         [data-theme="light"]{
@@ -82,8 +79,7 @@
           fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
         .ic.putar{animation:putar 1s linear infinite}
 
-        /* Konten mulai di bawah kop, tanpa tumpang tindih.
-           Jarak diatur oleh padding-top pada <main>, bukan margin negatif. */
+        /* Konten utama dengan padding atas agar tidak tertutup header */
         .halaman{margin-top:0}
 
         /* --- KONTEN --- */
@@ -408,7 +404,7 @@
 
     <main id="gulir">
 
-        <!-- ══════════ BERANDA ══════════ -->
+        <!-- Beranda -->
         <section class="halaman aktif" id="h-beranda">
             <div class="kartu">
                 <div class="dev-atas">
@@ -447,7 +443,7 @@
             <div id="tindakan"></div>
         </section>
 
-        <!-- ══════════ VALIDASI ══════════ -->
+        <!-- Validasi -->
         <section class="halaman" id="h-validasi">
             <div style="margin-bottom:12px">
                 <button class="btn" style="width:100%;min-height:46px;font-size:.88rem;background:linear-gradient(135deg,#2E9E63,#1F7A4A);box-shadow:0 4px 14px rgba(46,158,99,.25)" id="btnAmbilDataValidasiTab">
@@ -462,7 +458,7 @@
             <div id="isiValidasi"></div>
         </section>
 
-        <!-- ══════════ RIWAYAT ══════════ -->
+        <!-- Riwayat -->
         <section class="halaman" id="h-riwayat">
             <div class="segmen" role="group" aria-label="Saring riwayat">
                 <button data-riwayat="SEMUA" aria-pressed="true">Semua</button>
@@ -478,7 +474,7 @@
                 <svg class="ic"><use href="#i-silang"/></svg> Bersihkan Seluruh Riwayat & Foto</button>
         </section>
 
-        <!-- ══════════ PENGATURAN ══════════ -->
+        <!-- Pengaturan -->
         <section class="halaman rata" id="h-pengaturan">
             <p class="judul-sec">Tampilan</p>
             <div class="daftar">
@@ -555,7 +551,7 @@
             </div>
         </section>
 
-        <!-- ══════════ SUB: KONEKSI ══════════ -->
+        <!-- Sub: Koneksi -->
         <section class="halaman" id="h-koneksi">
             <div class="kartu">
                 <table class="tb">
@@ -583,7 +579,7 @@
             <div class="kartu"><table class="tb"><tbody id="isiSesi"></tbody></table></div>
         </section>
 
-        <!-- ══════════ SUB: UJI KAMERA ══════════ -->
+        <!-- Sub: Uji Kamera -->
         <section class="halaman" id="h-uji">
             <div class="kartu" id="ujiLatensi"></div>
             <div class="kartu" id="ujiTajam"></div>
@@ -628,7 +624,7 @@
                 <th class="n">ms B</th><th class="n">Tajam L</th><th class="n">Tajam B</th></tr></thead>
                 <tbody id="isiTabel"></tbody></table></div></section>
 
-        <!-- ══════════ SUB: SUMBER DATA ══════════ -->
+        <!-- Sub: Sumber Data -->
         <section class="halaman" id="h-sumber">
             <div class="kartu">
                 <p style="font-size:.84rem;color:var(--text-secondary);line-height:1.65;margin-bottom:16px">
@@ -643,7 +639,7 @@
             <div style="margin-top:14px" id="statusSumber"></div>
         </section>
 
-        <!-- ══════════ SUB: SIMULASI ══════════ -->
+        <!-- Sub: Simulasi -->
         <section class="halaman" id="h-simulasi">
             <div class="kartu">
                 <p style="font-size:.84rem;color:var(--text-secondary);line-height:1.65;margin-bottom:6px">
@@ -695,9 +691,7 @@
 <script>
     "use strict";
 
-    /* ══════════════════════════════════════════════════════════
-       1. NAVIGASI (STATIS)
-       ══════════════════════════════════════════════════════════ */
+    /* 1. Navigasi */
     const JUDUL = {
       "h-beranda":"Beranda", "h-validasi":"Validasi", "h-riwayat":"Riwayat", "h-pengaturan":"Pengaturan",
       "h-koneksi":"Koneksi", "h-uji":"Uji Kamera", "h-objek":"Rincian Objek",
@@ -795,9 +789,7 @@
       clearTimeout(jamToast); jamToast=setTimeout(()=>t.hidden=true, 2600);
     }
 
-    /* ══════════════════════════════════════════════════════════
-       2. TEMA & PENGATURAN
-       ══════════════════════════════════════════════════════════ */
+    /* 2. Tema dan Pengaturan */
     let tema = "light";
     function pasangTema(t){
       tema = t;
@@ -840,9 +832,7 @@
       };
     }
 
-    /* ══════════════════════════════════════════════════════════
-       3. QR HOTSPOT
-       ══════════════════════════════════════════════════════════ */
+    /* 3. QR Hotspot */
     function mintaQr(){
       const ssid  = document.getElementById("ssid").value.trim() || "SigapNetra-HP";
       const sandi = document.getElementById("sandi").value;
@@ -861,9 +851,7 @@
     document.getElementById("btnQr3").onclick = bukaQr;
     document.getElementById("btnQrKop").onclick = bukaQr;
 
-    /* ══════════════════════════════════════════════════════════
-       4. BERANDA
-       ══════════════════════════════════════════════════════════ */
+    /* 4. Beranda */
     function gambarBeranda(){
       document.getElementById("devNama").textContent = dataBeranda.id || "SGP-NETRA";
       const elKet = document.getElementById("devKet");
@@ -930,9 +918,7 @@
     const btnAmbilTab = document.getElementById("btnAmbilDataValidasiTab");
     if (btnAmbilTab) btnAmbilTab.onclick = pemicuAmbilData;
 
-    /* ══════════════════════════════════════════════════════════
-       5. VALIDASI
-       ══════════════════════════════════════════════════════════ */
+    /* 5. Validasi */
     const NOMINAL = [1000,2000,5000,10000,20000,50000,100000];
     const KATEGORI_GALAT = ["SALAH_KELAS","TERPOTONG","BURAM","CAHAYA","LAIN"];
     const ringkasNominal = v => v>=1000 ? (v/1000)+"rb" : String(v);
@@ -1078,9 +1064,7 @@
       };
     }
 
-    /* ══════════════════════════════════════════════════════════
-       6. RIWAYAT
-       ══════════════════════════════════════════════════════════ */
+    /* 6. Riwayat */
     let saringRiwayat = "SEMUA";
     document.querySelectorAll("[data-riwayat]").forEach(b=> b.onclick = ()=>{
       document.querySelectorAll("[data-riwayat]").forEach(x=>x.setAttribute("aria-pressed","false"));
@@ -1164,9 +1148,7 @@
       };
     }
 
-    /* ══════════════════════════════════════════════════════════
-       7. KONEKSI & LANGKAH SINKRONISASI
-       ══════════════════════════════════════════════════════════ */
+    /* 7. Koneksi dan Sinkronisasi */
     const LANGKAH = ["Menyambung ke perangkat","Menyegel berkas log","Mengunduh data",
       "Memeriksa keutuhan","Menyimpan ke basis data","Menghapus log di perangkat"];
     let stateLangkah = {};
@@ -1221,9 +1203,7 @@
       elEp.onclick = editHost;
     }
 
-    /* ══════════════════════════════════════════════════════════
-       8. UJI KAMERA
-       ══════════════════════════════════════════════════════════ */
+    /* 8. Uji Kamera */
     let idxBanding = 0;
     const NAMA_OBJEK = {teks:"Menu / teks", uang:"Uang kertas", lain:"Lainnya", "?":"Belum dilabeli"};
 
@@ -1351,9 +1331,7 @@
     document.getElementById("fCsv").onchange = ()=>{ if(window.Sigap) Sigap.muatBerkasUji(); };
     document.getElementById("fImg").onchange = ()=>{ if(window.Sigap) Sigap.muatBerkasUji(); };
 
-    /* ══════════════════════════════════════════════════════════
-       9. RECEIVER RESMI KOTLIN -> JAVASCRIPT (BAGIAN 8.2)
-       ══════════════════════════════════════════════════════════ */
+    /* 9. Receiver Kotlin ke JavaScript */
     window.terimaBeranda = function(data){
       dataBeranda = typeof data === "string" ? JSON.parse(data) : data;
       gambarBeranda();

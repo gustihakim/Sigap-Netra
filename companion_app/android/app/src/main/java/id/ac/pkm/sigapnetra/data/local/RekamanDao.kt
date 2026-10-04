@@ -19,10 +19,7 @@ interface RekamanDao {
     @Query("SELECT * FROM rekaman ORDER BY no ASC, jalur DESC")
     fun getAllRekamanFlow(): Flow<List<Rekaman>>
 
-    /**
-     * Query Pasangan Uji Kamera Jalur A/B (Bagian 5.3)
-     * Hanya memasangkan jika kedua jalur (lama & baru) ada pada deviceId yang sama dan ketajaman >= 0.
-     */
+    /** Query pasangan rekaman uji kamera jalur A dan B berdasarkan ID perangkat. */
     @Query("""
         SELECT l.no, l.detik, COALESCE(l.objek, b.objek) AS objek,
                l.msBaca AS msLama, b.msBaca AS msBaru,
