@@ -1,28 +1,28 @@
-# Sigap Netra — Assistive Companion Ecosystem
+# Sigap Netra - Companion App
 
-This directory houses the companion client applications designed to interface seamlessly with the Sigap Netra smart glasses over local Wi-Fi.
+Optional app for caregivers and researchers. It is **not** required for daily
+use of the glasses; the device works fully offline on its own.
 
-## 📱 Subsystems
+## What it does
+- **Sync** device logs over local Wi-Fi with SHA-1 integrity check.
+  Data is deleted from the device only after the checksum matches.
+- **Validation queue**: a human marks each detection as correct or wrong.
+- **Camera A/B test** with median and two-sided sign test.
+- **Export** results to CSV.
 
-### 1. `web/` (Progressive Web Application)
-- Responsive dashboard (`sigap.html` / `index.html`) inspired by the SIPETA mobile design language.
-- Features:
-  - Real-time telemetry monitoring (battery voltage, percentage, LiDAR distance in cm).
-  - Mode switching (`AUTO`, `UANG`, `TEKS`).
-  - Remote capture trigger button.
-  - Live transaction and reading history log.
-  - Light and Dark mode UI.
+## Folders
 
-### 2. `android/` (Android Studio Kotlin Project)
-- Native Android wrapper built in Kotlin with WebView bridge architecture (`JembatanSigap.kt`).
-- Hardware integration:
-  - Native haptic feedback / vibration.
-  - Android Speech Synthesis (TTS) fallback.
-  - Wi-Fi socket communication.
+| Folder | Content |
+| :--- | :--- |
+| `android/` | Android Studio project (Kotlin, WebView bridge `JembatanSigap.kt`) |
+| `web/` | The same UI (`sigap.html`) as a standalone page |
 
-## 🛠️ Opening the Android Project
-Open the `android/` folder directly in **Android Studio** and build to any Android device running Android 8.0 (API 26) or higher.
+## Build the Android app
+1. Open `android/` in Android Studio and let Gradle sync.
+2. Build and install on **Android 7.0 (API 24)** or newer.
+3. Connect the phone to the same Wi-Fi as the MaixCam.
+4. Set the device IP in the app, then tap **Sinkronkan**.
 
-## 📖 Handover & Architecture Guide
-For the full concept, research methodology, and handover roadmap for junior researchers, see:
-👉 [Konsep & Arsitektur Ekosistem Aplikasi Asistif](../../docs/konsep_aplikasi_asistif.md)
+## Further reading
+- [Concept & handover guide](../docs/konsep_aplikasi_asistif.md)
+- [REST API reference](../README.md#-rest-api-reference)

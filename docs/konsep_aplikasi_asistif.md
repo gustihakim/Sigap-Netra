@@ -71,9 +71,9 @@ Aplikasi Asistif Sigap Netra (`companion_app/`) dirancang bukan sebagai *gimmick
   - Aplikasi secara otomatis menghitung metrik akurasi empiris riil berdasarkan validasi mata manusia.
 
 ### C. Mesin Uji Statistik Otomatis (*Sign Test / Uji Tanda*)
-- Terintegrasi langsung di dalam `com.example.sigapnetra.util.UjiTanda`:
-  - Menghitung formula kombinatorial $P$-value secara mandiri di Android.
-  - Membandingkan model lama vs model baru secara ilmiah ($n \ge 6$).
+- Terintegrasi langsung di dalam `id.ac.pkm.sigapnetra.util.UjiTanda`:
+  - Menghitung nilai p (p-value) uji tanda dua arah secara mandiri di Android.
+  - Membandingkan model lama vs model baru secara ilmiah (minimal n = 6 pasangan).
   - Membuktikan signifikansi peningkatan akurasi atau latensi secara kuantitatif untuk kebutuhan laporan PKM, jurnal, atau skripsi.
 
 ### D. Pemicu Jarak Jauh (*Remote Trigger Capture*)

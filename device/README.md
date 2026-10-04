@@ -1,25 +1,27 @@
-# Sigap Netra — Edge AI Firmware & Application
+# Sigap Netra - Device Application
 
-This directory contains the embedded Python application deployed to the **Sipeed MaixCam** (Sophgo SG2002 SoC, RISC-V C906, 1 TOPS NPU).
+Code that runs on the **Sipeed MaixCam** (SG2002, RISC-V C906, 1 TOPS NPU).
 
-## 📁 Directory Contents
+## Contents
 
-- `main.py`: Primary application entrypoint (Bahasa Indonesia comments, fully optimized for device execution).
-- `main_en.py`: English documented application runtime.
-- `sigap_core.py`: Pure algorithmic core containing phonetic dictionaries, OCR text splitting, Levenshtein post-processing, bounding box deduplication, and button pattern state machine (verified by 284 unit tests).
-- `sigap_api_server.py`: Multithreaded REST API server enabling wireless synchronization with the companion mobile app.
-- `kata_utuh.py`: Indonesian culinary and currency vocabulary lexicon.
-- `models/`:
-  - `yolo11n_rupiah_delta_int8.cvimodel` (2.88 MB): Hardware-accelerated INT8 quantized YOLOv11 model.
-  - `yolo11n_rupiah_delta_bf16.cvimodel` (5.76 MB): BF16 floating-point precision variant.
-  - `.mud`: MaixPy unified descriptor files.
+| File | Purpose |
+| :--- | :--- |
+| `main.py` | Main application: camera, YOLO, PP-OCR, audio, button, LiDAR, battery, HTTP server |
+| `main_en.py` | Same application with English comments (reference only) |
+| `sigap_core.py` | Pure logic without `maix`, testable on a PC (284 unit tests) |
+| `sigap_api_server.py` | Standalone HTTP server (reference; `main.py` embeds its own) |
+| `kata_utuh.py` | Word bank for the dictionary |
+| `app.yaml` | MaixPy app manifest, app id `aplikasi_utama` |
+| `models/` | YOLOv11n Delta INT8 (2.88 MB) and BF16 (5.76 MB) |
 
-## 🚀 Running on Device
+## Quick check before deploying
 
 ```bash
-# Verify static code health before flashing
-python3 periksa_main.py main.py
-
-# Run on MaixCam
-python3 main.py
+python sigap_core.py                         # expected: 284 lulus, 0 gagal
+python ../tools/periksa_main.py main.py      # expected: no MASALAH
 ```
+
+## Install and usage
+
+See the full step-by-step guide in the root README:
+[Sipeed MaixCam Usage Guide](../README.md#-sipeed-maixcam-usage-guide).
